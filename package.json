@@ -1,0 +1,218 @@
+{
+  "name": "reelbar",
+  "displayName": "Reelbar",
+  "description": "Instagram in your VS Code sidebar — a real Chrome runs invisibly and streams into the editor. Scroll reels beside your code, audio and all. No iframe, no proxy: Instagram sees a normal browser.",
+  "version": "2.0.0",
+  "publisher": "opryon",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tyagi221B/Reelbar.git"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "instagram",
+    "reels",
+    "sidebar",
+    "dock",
+    "companion",
+    "break"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "smoke": "npm run compile && node test/smoke-v2.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.80.0",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.4.0"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "reelbar",
+          "title": "Reelbar",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "reelbar": [
+        {
+          "type": "webview",
+          "id": "reelbar.view",
+          "name": "Reels",
+          "contextualTitle": "Reelbar"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "reelbar.toggle",
+        "title": "Reelbar: Toggle Instagram",
+        "category": "Reelbar"
+      },
+      {
+        "command": "reelbar.open",
+        "title": "Reelbar: Open Instagram",
+        "category": "Reelbar"
+      },
+      {
+        "command": "reelbar.close",
+        "title": "Reelbar: Close Instagram",
+        "shortTitle": "Shut Down",
+        "category": "Reelbar",
+        "icon": "$(stop-circle)"
+      },
+      {
+        "command": "reelbar.redock",
+        "title": "Reelbar: Re-snap Dock to Edge (window mode)",
+        "category": "Reelbar"
+      },
+      {
+        "command": "reelbar.showBrowserWindow",
+        "title": "Reelbar: Show Browser Window (login / verification)",
+        "category": "Reelbar"
+      },
+      {
+        "command": "reelbar.hideBrowserWindow",
+        "title": "Reelbar: Hide Browser Window (park offscreen)",
+        "category": "Reelbar"
+      },
+      {
+        "command": "reelbar.restartChrome",
+        "title": "Reelbar: Restart Browser",
+        "category": "Reelbar"
+      },
+      {
+        "command": "reelbar.reload",
+        "title": "Reelbar: Reload Page",
+        "shortTitle": "Reload",
+        "category": "Reelbar",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "reelbar.reload",
+          "when": "view == reelbar.view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "reelbar.close",
+          "when": "view == reelbar.view",
+          "group": "navigation@2"
+        },
+        {
+          "command": "reelbar.showBrowserWindow",
+          "when": "view == reelbar.view",
+          "group": "1_window@1"
+        },
+        {
+          "command": "reelbar.hideBrowserWindow",
+          "when": "view == reelbar.view",
+          "group": "1_window@2"
+        },
+        {
+          "command": "reelbar.restartChrome",
+          "when": "view == reelbar.view",
+          "group": "2_danger@1"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "reelbar.toggle",
+        "key": "ctrl+shift+9",
+        "mac": "cmd+shift+9"
+      }
+    ],
+    "configuration": {
+      "title": "Reelbar",
+      "properties": {
+        "reelbar.mode": {
+          "type": "string",
+          "enum": [
+            "sidebar",
+            "window"
+          ],
+          "default": "sidebar",
+          "description": "sidebar: stream Instagram into a VS Code sidebar view (recommended). window: dock a separate chromeless browser window beside the editor (legacy)."
+        },
+        "reelbar.quality": {
+          "type": "number",
+          "default": 70,
+          "minimum": 30,
+          "maximum": 100,
+          "description": "JPEG quality of the sidebar video stream. Higher = sharper, more CPU."
+        },
+        "reelbar.mobileUI": {
+          "type": "boolean",
+          "default": true,
+          "description": "Virtual phone: present the hidden browser as an iPhone (390px-wide viewport, phone user agent) so Instagram serves its phone UI — full-bleed reels, one reel per screen, properly scaled buttons at any sidebar size. On by default; the desktop layout reserves a fixed 138px action column that forces a second reel into view on narrow sidebars. Applies after Reload Page / Restart Browser. Turn off if Instagram misbehaves."
+        },
+        "reelbar.reelHeight": {
+          "type": "number",
+          "default": 844,
+          "minimum": 400,
+          "maximum": 1200,
+          "description": "Virtual phone only: maximum height (px) of the emulated phone viewport. Instagram's mobile web reels is a scrolling feed, so a taller viewport shows more than one reel at a time — this caps it. Default 844 keeps the previous behaviour. Lower it to fit fewer reels per screen (a 9:16 reel at 390px wide is ~693 tall); lower = more zoomed in, with slight letterboxing on tall sidebars. Applies immediately.",
+          "markdownDescription": "Virtual phone only: maximum height (px) of the emulated phone viewport. Instagram's mobile web reels is a scrolling feed, so a taller viewport shows more than one reel at a time — this caps it.\n\nDefault `844` keeps the previous behaviour. Lower it to fit fewer reels per screen (a 9:16 reel at 390px wide is ~`693` tall); lower = more zoomed in, with slight letterboxing on tall sidebars. Applies immediately."
+        },
+        "reelbar.muteWhenHidden": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mute Instagram when the sidebar view is hidden. Off by default so audio keeps playing (podcast mode). The video stream always pauses when hidden; only audio is affected."
+        },
+        "reelbar.url": {
+          "type": "string",
+          "default": "https://www.instagram.com/",
+          "description": "Page to open. Default is the Instagram home feed."
+        },
+        "reelbar.browserPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to a Chromium-based browser binary. Leave empty to auto-detect (Chrome → Brave → Edge → Chromium)."
+        },
+        "reelbar.dockSide": {
+          "type": "string",
+          "enum": [
+            "left",
+            "right"
+          ],
+          "default": "right",
+          "description": "Window mode only: which screen edge the Instagram window snaps to."
+        },
+        "reelbar.width": {
+          "type": "number",
+          "default": 440,
+          "minimum": 300,
+          "maximum": 900,
+          "description": "Window mode only: width of the docked Instagram window, in pixels."
+        },
+        "reelbar.menuBarOffset": {
+          "type": "number",
+          "default": 25,
+          "description": "Window mode only: pixels to leave at the top for the macOS menu bar."
+        }
+      }
+    }
+  }
+}

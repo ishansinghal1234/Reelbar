@@ -1,0 +1,57 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+#screen {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  cursor: default;
+  /* Frames briefly lag the sidebar size during resize; letterbox instead of
+     stretching so the page never looks warped. */
+  object-fit: contain;
+  background: #000;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.82);
+  color: var(--vscode-foreground, #ddd);
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+#overlay[hidden] {
+  display: none;
+}
+
+#overlay-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 3px;
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#overlay-btn:hover {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+}
