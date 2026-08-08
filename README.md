@@ -8,21 +8,33 @@ Not an iframe, not a proxy. A real Chrome runs with its window parked out of sig
 
 ## Install
 
-From a `.vsix` file:
+Reelbar isn't on the Marketplace yet, so you build it yourself. It takes about a minute.
+
+**You need first:** [Node.js](https://nodejs.org) 18+, VS Code 1.80+, and a Chromium browser (Chrome, Brave, Edge or Chromium — auto-detected).
+
+Download the source ([ZIP](https://github.com/Tyagi221B/Reelbar/archive/refs/heads/main.zip) or `git clone`), open a terminal **in that folder**, and run:
+
+```bash
+npm install
+npm run package
+```
+
+That produces `reelbar-2.0.0.vsix` in the folder. Install it:
 
 ```bash
 code --install-extension reelbar-2.0.0.vsix
 ```
 
-Or in VS Code: **Extensions** → `···` menu → **Install from VSIX…**
+On Windows, if `code` isn't recognised, use VS Code instead: **Extensions** → `···` menu → **Install from VSIX…** → pick the file.
 
-Then **fully quit and reopen VS Code** (`⌘Q` — not "Reload Window").
+Then **fully quit and reopen VS Code** (`⌘Q` / close every window — not "Reload Window").
 
-**Requirements**
+> The `.vsix` is not committed to the repo, so downloading the source ZIP alone won't give you one — `npm run package` is what builds it.
 
-- VS Code 1.80 or newer
-- A Chromium browser installed: Chrome, Brave, Edge, or Chromium (auto-detected)
-- macOS is the primary target. Linux and Windows run but are untested — window parking is macOS-tuned.
+**Platform support**
+
+- **macOS** — primary target, fully tested.
+- **Windows / Linux** — the extension runs, but window parking is macOS-tuned and untested elsewhere. The hidden browser window may be visible or behave oddly, and the "Close it and retry" recovery for a stuck profile lock is macOS-only. Reports welcome.
 
 ## First run
 
@@ -113,6 +125,7 @@ Instagram sends `X-Frame-Options: DENY`, so it cannot render inside a VS Code we
 npm install
 npm run compile
 npm run smoke      # 22 tests against a real Chrome, throwaway profile
+npm run package    # build the .vsix
 ```
 
 Press **F5** to launch an Extension Development Host with Reelbar loaded.

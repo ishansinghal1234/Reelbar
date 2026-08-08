@@ -30,6 +30,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
+    "package": "npm run compile && npx --yes @vscode/vsce package",
     "watch": "tsc -watch -p ./",
     "smoke": "npm run compile && node test/smoke-v2.js"
   },
