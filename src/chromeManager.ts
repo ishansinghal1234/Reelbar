@@ -234,6 +234,13 @@ export class ChromeManager {
       /* ignore */
     }
 
+    // For Slack: write Chrome preferences that silently block slack:// protocol
+    // links before the first launch so workspace-switching never triggers the
+    // invisible "Open in Slack app?" dialog that would freeze the parked window.
+    if (this.startUrl.includes("slack.com")) {
+      this.writeBlockedSchemes(["slack"]);
+    }
+
     const url = this.startUrl;
     const args = [
       "--remote-debugging-port=0",
@@ -538,6 +545,27 @@ export class ChromeManager {
     const aspectHeight = Math.max(MIN_PHONE_HEIGHT, Math.round((PHONE_WIDTH * h) / w));
     const height = mobile ? Math.min(cap, aspectHeight) : h;
     return { width, height, mobile };
+  }
+
+  // Write Chrome's Default/Preferences file to silently block the given URL
+  // schemes from triggering external-app dialogs. Must be called before Chrome
+  // starts; on a fresh profile Chrome accepts the file as-is (no prior MAC).
+  private writeBlockedSchemes(schemes: string[]): void {
+    const defaultDir = path.join(this.profileDir, "Default");
+    fs.mkdirSync(defaultDir, { recursive: true });
+    const prefsPath = path.join(defaultDir, "Preferences");
+    let prefs: any = {};
+    try {
+      prefs = JSON.parse(fs.readFileSync(prefsPath, "utf8"));
+    } catch { /* new profile — start empty */ }
+    prefs.protocol_handler = prefs.protocol_handler || {};
+    prefs.protocol_handler.excluded_schemes = prefs.protocol_handler.excluded_schemes || {};
+    for (const s of schemes) {
+      prefs.protocol_handler.excluded_schemes[s] = true;
+    }
+    try {
+      fs.writeFileSync(prefsPath, JSON.stringify(prefs));
+    } catch { /* best-effort */ }
   }
 
   // The real window must look normal when shown for login — drop any

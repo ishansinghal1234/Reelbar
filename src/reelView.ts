@@ -10,7 +10,7 @@ const LOGIN_URL_INSTAGRAM_RE =
 const LOGIN_URL_YTMUSIC_RE =
   /accounts\.google\.com\/(signin|ServiceLogin|o\/oauth2)|myaccount\.google\.com/;
 const LOGIN_URL_SLACK_RE =
-  /slack\.com\/(sign_in|workspace-signin|intl\/[^/]+\/sign_in|get-started)|app\.slack\.com\/auth/;
+  /slack\.com\/(sign_?in|workspace-signin|intl\/[^/]+\/sign_?in|get-started)|app\.slack\.com\/(auth|[^/]+\/auth)/;
 
 // Virtual key codes for the non-printable keys Instagram cares about.
 const VK: Record<string, number> = {
@@ -315,6 +315,35 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
     this.disposables = [];
 
     await cdp.send("Page.enable", {}, sessionId);
+
+    // Slack: intercept JS-level slack:// navigations so workspace-switching
+    // stays in the web app instead of trying to open the native client.
+    if (this.source === "slack") {
+      await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+        source: `(function(){
+          const _open = window.open;
+          window.open = function(url) {
+            if (typeof url === "string" && url.startsWith("slack://")) return null;
+            return _open.apply(this, arguments);
+          };
+          // Also catch location.href = "slack://..." assignments
+          try {
+            const desc = Object.getOwnPropertyDescriptor(location, "href");
+            if (desc && desc.set) {
+              Object.defineProperty(location, "href", {
+                get: desc.get,
+                set: function(v) {
+                  if (typeof v === "string" && v.startsWith("slack://")) return;
+                  desc.set.call(this, v);
+                },
+                configurable: true,
+              });
+            }
+          } catch(e) {}
+        })();`
+      }, sessionId).catch(() => {});
+    }
+
     // The page must believe it's focused while parked offscreen, or videos
     // pause and hover UI never appears.
     await cdp
