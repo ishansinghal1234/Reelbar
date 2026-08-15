@@ -34,9 +34,6 @@ function cfg(): vscode.WorkspaceConfiguration {
   return vscode.workspace.getConfiguration("reelbar");
 }
 
-function source(): string {
-  return cfg().get<string>("source", "instagram");
-}
 
 // Bail out of a page action when the user is actually typing (comment box,
 // search field) so Space still types a space and arrows still move the caret.
@@ -109,7 +106,8 @@ const RESIZE_THROTTLE_MS = 250;
 const MIN_SANE_DIM = 50;
 
 export class ReelViewProvider implements vscode.WebviewViewProvider {
-  static readonly viewId = "reelbar.view";
+  readonly viewId: string;
+  readonly source: string;
 
   private context: vscode.ExtensionContext;
   private chrome: ChromeManager;
@@ -128,11 +126,26 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
   private navKeys = new Set<string>(); // arrow keydowns we consumed, awaiting keyup
   private disposables: Array<() => void> = [];
 
-  constructor(context: vscode.ExtensionContext) {
+  constructor(context: vscode.ExtensionContext, viewId: string, source: string) {
     this.context = context;
-    this.chrome = new ChromeManager(context, {
-      onGone: () => this.onChromeGone(),
-    });
+    this.viewId = viewId;
+    this.source = source;
+    this.chrome = this.makeChrome();
+  }
+
+  private makeChrome(): ChromeManager {
+    return new ChromeManager(
+      this.context,
+      { onGone: () => this.onChromeGone() },
+      `profile-${this.source}`,
+      this.sourceUrl()
+    );
+  }
+
+  private sourceUrl(): string {
+    if (this.source === "ytmusic") return "https://music.youtube.com/";
+    if (this.source === "slack") return "https://app.slack.com/";
+    return cfg().get<string>("url", "https://www.instagram.com/");
   }
 
   get chromeManager(): ChromeManager {
@@ -212,7 +225,7 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
       case "text":
         if (this.cdp && this.sessionId && typeof m.text === "string") {
           if (m.text === " ") {
-            if (source() === "instagram") {
+            if (this.source === "instagram") {
               // Instagram: toggle play/pause via the video element directly.
               if ((await this.pageAction(TOGGLE_PLAY_JS)) !== "typing") break;
             } else {
@@ -313,7 +326,7 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
     // Pinned here so a mid-session config toggle can't pair phone metrics
     // with a desktop UA (or vice versa) on the next resize.
     // YT Music and Slack are desktop-first; mobileUI is Instagram-only.
-    const wantMobile = source() === "instagram" && cfg().get<boolean>("mobileUI", false);
+    const wantMobile = this.source === "instagram" && cfg().get<boolean>("mobileUI", false);
     this.chrome.setSessionMobile(wantMobile);
     if (wantMobile) {
       const ua = {
@@ -375,13 +388,13 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
         const frame = params.frame;
         if (frame?.parentId) return; // main frame only
         const url: string = frame?.url || "";
-        const loginRe = source() === "ytmusic" ? LOGIN_URL_YTMUSIC_RE
-          : source() === "slack" ? LOGIN_URL_SLACK_RE
+        const loginRe = this.source === "ytmusic" ? LOGIN_URL_YTMUSIC_RE
+          : this.source === "slack" ? LOGIN_URL_SLACK_RE
           : LOGIN_URL_INSTAGRAM_RE;
         if (loginRe.test(url)) {
-          const detail = source() === "ytmusic"
+          const detail = this.source === "ytmusic"
             ? "YouTube Music wants you to log in with your Google account. Do it in a real browser window — it only takes once."
-            : source() === "slack"
+            : this.source === "slack"
             ? "Slack wants you to sign in to your workspace. Do it in a real browser window — it only takes once."
             : "Instagram wants you to log in or verify. Do it in a real browser window — it only takes once.";
           this.postState("loginNeeded", detail);
@@ -580,7 +593,7 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
     const code = m.code || m.key;
     // Reel scroll — Instagram only: the page binds nothing to arrows so we
     // step a full reel. YT Music handles arrows natively (seek / volume).
-    if (source() === "instagram" && (code === "ArrowDown" || code === "ArrowUp")) {
+    if (this.source === "instagram" && (code === "ArrowDown" || code === "ArrowUp")) {
       if (this.navKeys.has(code)) {
         if (m.kind === "up") this.navKeys.delete(code);
         return; // swallow the matching keyup of a keydown we consumed
@@ -711,7 +724,7 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
     this.cdp = null;
     this.sessionId = null;
     // ChromeManager marked itself disposed; build a fresh one for next time.
-    this.chrome = new ChromeManager(this.context, { onGone: () => this.onChromeGone() });
+    this.chrome = this.makeChrome();
     this.postState("chromeDead");
   }
 

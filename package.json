@@ -59,26 +59,38 @@
       "reelbar": [
         {
           "type": "webview",
-          "id": "reelbar.view",
-          "name": "Reels",
-          "contextualTitle": "Reelbar"
+          "id": "reelbar.view.instagram",
+          "name": "Instagram",
+          "contextualTitle": "Reelbar — Instagram"
+        },
+        {
+          "type": "webview",
+          "id": "reelbar.view.ytmusic",
+          "name": "YouTube Music",
+          "contextualTitle": "Reelbar — YouTube Music"
+        },
+        {
+          "type": "webview",
+          "id": "reelbar.view.slack",
+          "name": "Slack",
+          "contextualTitle": "Reelbar — Slack"
         }
       ]
     },
     "commands": [
       {
         "command": "reelbar.toggle",
-        "title": "Reelbar: Toggle Instagram",
+        "title": "Reelbar: Toggle Sidebar",
         "category": "Reelbar"
       },
       {
         "command": "reelbar.open",
-        "title": "Reelbar: Open Instagram",
+        "title": "Reelbar: Open",
         "category": "Reelbar"
       },
       {
         "command": "reelbar.close",
-        "title": "Reelbar: Close Instagram",
+        "title": "Reelbar: Close All",
         "shortTitle": "Shut Down",
         "category": "Reelbar",
         "icon": "$(stop-circle)"
@@ -105,42 +117,37 @@
       },
       {
         "command": "reelbar.reload",
-        "title": "Reelbar: Reload Page",
+        "title": "Reelbar: Reload All",
         "shortTitle": "Reload",
         "category": "Reelbar",
         "icon": "$(refresh)"
-      },
-      {
-        "command": "reelbar.switchSource",
-        "title": "Reelbar: Switch Service (Instagram / YouTube Music)",
-        "category": "Reelbar"
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "reelbar.reload",
-          "when": "view == reelbar.view",
+          "when": "view =~ /^reelbar\\.view\\./",
           "group": "navigation@1"
         },
         {
           "command": "reelbar.close",
-          "when": "view == reelbar.view",
+          "when": "view =~ /^reelbar\\.view\\./",
           "group": "navigation@2"
         },
         {
           "command": "reelbar.showBrowserWindow",
-          "when": "view == reelbar.view",
+          "when": "view =~ /^reelbar\\.view\\./",
           "group": "1_window@1"
         },
         {
           "command": "reelbar.hideBrowserWindow",
-          "when": "view == reelbar.view",
+          "when": "view =~ /^reelbar\\.view\\./",
           "group": "1_window@2"
         },
         {
           "command": "reelbar.restartChrome",
-          "when": "view == reelbar.view",
+          "when": "view =~ /^reelbar\\.view\\./",
           "group": "2_danger@1"
         }
       ]
@@ -155,21 +162,6 @@
     "configuration": {
       "title": "Reelbar",
       "properties": {
-        "reelbar.source": {
-          "type": "string",
-          "enum": [
-            "instagram",
-            "ytmusic",
-            "slack"
-          ],
-          "enumDescriptions": [
-            "Instagram Reels — opens instagram.com with reel navigation",
-            "YouTube Music — opens music.youtube.com in desktop mode",
-            "Slack — opens app.slack.com in desktop mode"
-          ],
-          "default": "instagram",
-          "description": "Which service to open in the sidebar. Changes take effect after running 'Reelbar: Switch Service' or 'Restart Browser'."
-        },
         "reelbar.mode": {
           "type": "string",
           "enum": [

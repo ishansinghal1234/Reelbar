@@ -54,20 +54,6 @@ function cfg(): vscode.WorkspaceConfiguration {
   return vscode.workspace.getConfiguration("reelbar");
 }
 
-function sourceUrl(): string {
-  const s = cfg().get<string>("source", "instagram");
-  if (s === "ytmusic") return "https://music.youtube.com/";
-  if (s === "slack") return "https://app.slack.com/";
-  return cfg().get<string>("url", "https://www.instagram.com/");
-}
-
-function sourceHostname(): string {
-  try {
-    return new URL(sourceUrl()).hostname;
-  } catch {
-    return "instagram.com";
-  }
-}
 
 export function findBrowser(): string | null {
   const custom = (cfg().get<string>("browserPath") || "").trim();
@@ -122,6 +108,8 @@ export interface ChromeEvents {
 export class ChromeManager {
   private context: vscode.ExtensionContext;
   private events: ChromeEvents;
+  private readonly profileSubdir: string;
+  private readonly startUrl: string;
   private proc: ChildProcess | null = null;
   private cdp: Cdp | null = null;
   private windowId: number | null = null;
@@ -137,9 +125,16 @@ export class ChromeManager {
   private sessionMobile = false;
   private minimizedPark = false; // sliver park failed; window is minimized
 
-  constructor(context: vscode.ExtensionContext, events: ChromeEvents) {
+  constructor(
+    context: vscode.ExtensionContext,
+    events: ChromeEvents,
+    profileSubdir = "profile",
+    startUrl = "https://www.instagram.com/"
+  ) {
     this.context = context;
     this.events = events;
+    this.profileSubdir = profileSubdir;
+    this.startUrl = startUrl;
   }
 
   get connection(): Cdp | null {
@@ -171,7 +166,7 @@ export class ChromeManager {
   }
 
   private get profileDir(): string {
-    return path.join(this.context.globalStorageUri.fsPath, "profile");
+    return path.join(this.context.globalStorageUri.fsPath, this.profileSubdir);
   }
 
   // Connect to a live Chrome on our profile, or spawn one. Returns the
@@ -239,7 +234,7 @@ export class ChromeManager {
       /* ignore */
     }
 
-    const url = sourceUrl();
+    const url = this.startUrl;
     const args = [
       "--remote-debugging-port=0",
       `--user-data-dir=${this.profileDir}`,
@@ -296,7 +291,8 @@ export class ChromeManager {
     this.windowId = null;
     this.lastAppliedViewport = null; // new window/session: no override applied yet
     const { targetInfos } = await this.cdp.send("Target.getTargets");
-    const hostname = sourceHostname();
+    let hostname = "instagram.com";
+    try { hostname = new URL(this.startUrl).hostname; } catch { /* fallback */ }
     let page = (targetInfos as any[]).find(
       (t) => t.type === "page" && t.url.includes(hostname)
     );
@@ -309,7 +305,7 @@ export class ChromeManager {
     if (page) {
       targetId = page.targetId;
     } else {
-      const created = await this.cdp.send("Target.createTarget", { url: sourceUrl() });
+      const created = await this.cdp.send("Target.createTarget", { url: this.startUrl });
       targetId = created.targetId;
     }
     this.targetId = targetId;
