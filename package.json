@@ -18,6 +18,8 @@
   "keywords": [
     "instagram",
     "reels",
+    "youtube music",
+    "ytmusic",
     "sidebar",
     "dock",
     "companion",
@@ -45,7 +47,7 @@
   },
   "contributes": {
     "viewsContainers": {
-      "activitybar": [
+      "secondarySideBar": [
         {
           "id": "reelbar",
           "title": "Reelbar",
@@ -107,6 +109,11 @@
         "shortTitle": "Reload",
         "category": "Reelbar",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "reelbar.switchSource",
+        "title": "Reelbar: Switch Service (Instagram / YouTube Music)",
+        "category": "Reelbar"
       }
     ],
     "menus": {
@@ -148,6 +155,19 @@
     "configuration": {
       "title": "Reelbar",
       "properties": {
+        "reelbar.source": {
+          "type": "string",
+          "enum": [
+            "instagram",
+            "ytmusic"
+          ],
+          "enumDescriptions": [
+            "Instagram Reels — opens instagram.com with reel navigation",
+            "YouTube Music — opens music.youtube.com in desktop mode"
+          ],
+          "default": "instagram",
+          "description": "Which service to open in the sidebar. Changes take effect after running 'Reelbar: Switch Service' or 'Restart Browser'."
+        },
         "reelbar.mode": {
           "type": "string",
           "enum": [

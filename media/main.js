@@ -90,7 +90,7 @@
         break;
       case "loginNeeded":
         showOverlay(
-          "Instagram wants you to log in or verify. Do it in a real browser window — it only takes once.",
+          detail || "Log in in a real browser window — it only takes once.",
           "Open login window",
           "showWindow"
         );

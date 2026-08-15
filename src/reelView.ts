@@ -5,8 +5,10 @@ import * as vscode from "vscode";
 import { ChromeManager, SingletonLockError } from "./chromeManager";
 import { Cdp } from "./cdp";
 
-const LOGIN_URL_RE =
+const LOGIN_URL_INSTAGRAM_RE =
   /\/accounts\/login|\/challenge|\/checkpoint|\/two_factor|\/auth_platform|\/accounts\/suspended/;
+const LOGIN_URL_YTMUSIC_RE =
+  /accounts\.google\.com\/(signin|ServiceLogin|o\/oauth2)|myaccount\.google\.com/;
 
 // Virtual key codes for the non-printable keys Instagram cares about.
 const VK: Record<string, number> = {
@@ -28,6 +30,10 @@ const VK: Record<string, number> = {
 
 function cfg(): vscode.WorkspaceConfiguration {
   return vscode.workspace.getConfiguration("reelbar");
+}
+
+function source(): string {
+  return cfg().get<string>("source", "instagram");
 }
 
 // Bail out of a page action when the user is actually typing (comment box,
@@ -203,9 +209,19 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
         break;
       case "text":
         if (this.cdp && this.sessionId && typeof m.text === "string") {
-          // Space is play/pause unless the user is typing, in which case the
-          // page action reports back and we insert the space as normal.
-          if (m.text === " " && (await this.pageAction(TOGGLE_PLAY_JS)) !== "typing") break;
+          if (m.text === " ") {
+            if (source() === "instagram") {
+              // Instagram: toggle play/pause via the video element directly.
+              if ((await this.pageAction(TOGGLE_PLAY_JS)) !== "typing") break;
+            } else {
+              // YT Music binds space to play/pause via keydown — dispatch as
+              // a real key event instead of inserting a text character.
+              const spaceKey = { key: " ", code: "Space", windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 };
+              await this.cdp.send("Input.dispatchKeyEvent", { type: "keyDown", ...spaceKey }, this.sessionId).catch(() => {});
+              await this.cdp.send("Input.dispatchKeyEvent", { type: "keyUp", ...spaceKey }, this.sessionId).catch(() => {});
+              break;
+            }
+          }
           await this.cdp
             .send("Input.insertText", { text: m.text }, this.sessionId)
             .catch(() => {});
@@ -294,7 +310,8 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
     // serves its mobile UI, where reels fill the viewport edge to edge.
     // Pinned here so a mid-session config toggle can't pair phone metrics
     // with a desktop UA (or vice versa) on the next resize.
-    const wantMobile = cfg().get<boolean>("mobileUI", false);
+    // YT Music is desktop-first; mobileUI is Instagram-only.
+    const wantMobile = source() !== "ytmusic" && cfg().get<boolean>("mobileUI", false);
     this.chrome.setSessionMobile(wantMobile);
     if (wantMobile) {
       const ua = {
@@ -356,8 +373,12 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
         const frame = params.frame;
         if (frame?.parentId) return; // main frame only
         const url: string = frame?.url || "";
-        if (LOGIN_URL_RE.test(url)) {
-          this.postState("loginNeeded");
+        const loginRe = source() === "ytmusic" ? LOGIN_URL_YTMUSIC_RE : LOGIN_URL_INSTAGRAM_RE;
+        if (loginRe.test(url)) {
+          const detail = source() === "ytmusic"
+            ? "YouTube Music wants you to log in with your Google account. Do it in a real browser window — it only takes once."
+            : "Instagram wants you to log in or verify. Do it in a real browser window — it only takes once.";
+          this.postState("loginNeeded", detail);
         } else if (!this.chrome.isShown) {
           this.postState("live");
         }
@@ -551,8 +572,9 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
   private async dispatchKey(m: any): Promise<void> {
     if (!this.cdp || !this.sessionId) return;
     const code = m.code || m.key;
-    // Reel navigation, handled here because the page binds nothing to arrows.
-    if (code === "ArrowDown" || code === "ArrowUp") {
+    // Reel scroll — Instagram only: the page binds nothing to arrows so we
+    // step a full reel. YT Music handles arrows natively (seek / volume).
+    if (source() === "instagram" && (code === "ArrowDown" || code === "ArrowUp")) {
       if (this.navKeys.has(code)) {
         if (m.kind === "up") this.navKeys.delete(code);
         return; // swallow the matching keyup of a keydown we consumed

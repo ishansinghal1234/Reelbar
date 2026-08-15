@@ -54,6 +54,20 @@ function cfg(): vscode.WorkspaceConfiguration {
   return vscode.workspace.getConfiguration("reelbar");
 }
 
+function sourceUrl(): string {
+  const s = cfg().get<string>("source", "instagram");
+  if (s === "ytmusic") return "https://music.youtube.com/";
+  return cfg().get<string>("url", "https://www.instagram.com/");
+}
+
+function sourceHostname(): string {
+  try {
+    return new URL(sourceUrl()).hostname;
+  } catch {
+    return "instagram.com";
+  }
+}
+
 export function findBrowser(): string | null {
   const custom = (cfg().get<string>("browserPath") || "").trim();
   if (custom) return fs.existsSync(custom) ? custom : null;
@@ -224,7 +238,7 @@ export class ChromeManager {
       /* ignore */
     }
 
-    const url = cfg().get<string>("url", "https://www.instagram.com/");
+    const url = sourceUrl();
     const args = [
       "--remote-debugging-port=0",
       `--user-data-dir=${this.profileDir}`,
@@ -281,8 +295,9 @@ export class ChromeManager {
     this.windowId = null;
     this.lastAppliedViewport = null; // new window/session: no override applied yet
     const { targetInfos } = await this.cdp.send("Target.getTargets");
+    const hostname = sourceHostname();
     let page = (targetInfos as any[]).find(
-      (t) => t.type === "page" && t.url.includes("instagram.com")
+      (t) => t.type === "page" && t.url.includes(hostname)
     );
     if (!page) {
       page = (targetInfos as any[]).find(
@@ -293,8 +308,7 @@ export class ChromeManager {
     if (page) {
       targetId = page.targetId;
     } else {
-      const url = cfg().get<string>("url", "https://www.instagram.com/");
-      const created = await this.cdp.send("Target.createTarget", { url });
+      const created = await this.cdp.send("Target.createTarget", { url: sourceUrl() });
       targetId = created.targetId;
     }
     this.targetId = targetId;

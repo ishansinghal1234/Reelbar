@@ -15,19 +15,28 @@ import * as windowMode from "./windowMode";
 let statusItem: vscode.StatusBarItem | null = null;
 let provider: ReelViewProvider | null = null;
 
+function cfg(): vscode.WorkspaceConfiguration {
+  return vscode.workspace.getConfiguration("reelbar");
+}
+
 function mode(): string {
-  return vscode.workspace.getConfiguration("reelbar").get<string>("mode", "sidebar");
+  return cfg().get<string>("mode", "sidebar");
+}
+
+function source(): string {
+  return cfg().get<string>("source", "instagram");
 }
 
 function updateStatus(): void {
   if (!statusItem) return;
   const active = mode() === "sidebar" ? !!provider?.chromeManager.isConnected : windowMode.isRunning();
+  const label = source() === "ytmusic" ? "YT Music" : "Reels";
   if (active) {
-    statusItem.text = "$(circle-filled) Reels";
-    statusItem.tooltip = "Reelbar: running — click to toggle (⌘⇧9)";
+    statusItem.text = `$(circle-filled) ${label}`;
+    statusItem.tooltip = `Reelbar: running — click to toggle (⌘⇧9)`;
   } else {
-    statusItem.text = "$(device-camera-video) Reels";
-    statusItem.tooltip = "Reelbar: open Instagram (⌘⇧9)";
+    statusItem.text = `$(device-camera-video) ${label}`;
+    statusItem.tooltip = `Reelbar: open ${source() === "ytmusic" ? "YouTube Music" : "Instagram"} (⌘⇧9)`;
   }
   statusItem.show();
 }
@@ -115,7 +124,24 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
     vscode.commands.registerCommand("reelbar.reload", () =>
       provider ? void provider.reloadPage() : undefined
-    )
+    ),
+    vscode.commands.registerCommand("reelbar.switchSource", async () => {
+      const current = source();
+      const picks = [
+        { label: "$(device-camera-video) Instagram Reels", id: "instagram" },
+        { label: "$(music) YouTube Music", id: "ytmusic" },
+      ];
+      const pick = await vscode.window.showQuickPick(
+        picks.map((p) => ({ ...p, description: p.id === current ? "current" : undefined })),
+        { title: "Reelbar: Switch Service", placeHolder: "Choose which service to open" }
+      );
+      if (!pick || pick.id === current) return;
+      await vscode.workspace
+        .getConfiguration("reelbar")
+        .update("source", pick.id, vscode.ConfigurationTarget.Global);
+      updateStatus();
+      if (provider) await provider.restartChrome();
+    })
   );
 }
 
