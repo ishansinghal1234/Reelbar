@@ -9,6 +9,8 @@ const LOGIN_URL_INSTAGRAM_RE =
   /\/accounts\/login|\/challenge|\/checkpoint|\/two_factor|\/auth_platform|\/accounts\/suspended/;
 const LOGIN_URL_YTMUSIC_RE =
   /accounts\.google\.com\/(signin|ServiceLogin|o\/oauth2)|myaccount\.google\.com/;
+const LOGIN_URL_SLACK_RE =
+  /slack\.com\/(sign_in|workspace-signin|intl\/[^/]+\/sign_in|get-started)|app\.slack\.com\/auth/;
 
 // Virtual key codes for the non-printable keys Instagram cares about.
 const VK: Record<string, number> = {
@@ -214,8 +216,8 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
               // Instagram: toggle play/pause via the video element directly.
               if ((await this.pageAction(TOGGLE_PLAY_JS)) !== "typing") break;
             } else {
-              // YT Music binds space to play/pause via keydown — dispatch as
-              // a real key event instead of inserting a text character.
+              // YT Music and Slack bind space via keydown — dispatch as a real
+              // key event instead of inserting a text character.
               const spaceKey = { key: " ", code: "Space", windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 };
               await this.cdp.send("Input.dispatchKeyEvent", { type: "keyDown", ...spaceKey }, this.sessionId).catch(() => {});
               await this.cdp.send("Input.dispatchKeyEvent", { type: "keyUp", ...spaceKey }, this.sessionId).catch(() => {});
@@ -310,8 +312,8 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
     // serves its mobile UI, where reels fill the viewport edge to edge.
     // Pinned here so a mid-session config toggle can't pair phone metrics
     // with a desktop UA (or vice versa) on the next resize.
-    // YT Music is desktop-first; mobileUI is Instagram-only.
-    const wantMobile = source() !== "ytmusic" && cfg().get<boolean>("mobileUI", false);
+    // YT Music and Slack are desktop-first; mobileUI is Instagram-only.
+    const wantMobile = source() === "instagram" && cfg().get<boolean>("mobileUI", false);
     this.chrome.setSessionMobile(wantMobile);
     if (wantMobile) {
       const ua = {
@@ -373,10 +375,14 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
         const frame = params.frame;
         if (frame?.parentId) return; // main frame only
         const url: string = frame?.url || "";
-        const loginRe = source() === "ytmusic" ? LOGIN_URL_YTMUSIC_RE : LOGIN_URL_INSTAGRAM_RE;
+        const loginRe = source() === "ytmusic" ? LOGIN_URL_YTMUSIC_RE
+          : source() === "slack" ? LOGIN_URL_SLACK_RE
+          : LOGIN_URL_INSTAGRAM_RE;
         if (loginRe.test(url)) {
           const detail = source() === "ytmusic"
             ? "YouTube Music wants you to log in with your Google account. Do it in a real browser window — it only takes once."
+            : source() === "slack"
+            ? "Slack wants you to sign in to your workspace. Do it in a real browser window — it only takes once."
             : "Instagram wants you to log in or verify. Do it in a real browser window — it only takes once.";
           this.postState("loginNeeded", detail);
         } else if (!this.chrome.isShown) {

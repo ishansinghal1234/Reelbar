@@ -159,11 +159,13 @@
           "type": "string",
           "enum": [
             "instagram",
-            "ytmusic"
+            "ytmusic",
+            "slack"
           ],
           "enumDescriptions": [
             "Instagram Reels — opens instagram.com with reel navigation",
-            "YouTube Music — opens music.youtube.com in desktop mode"
+            "YouTube Music — opens music.youtube.com in desktop mode",
+            "Slack — opens app.slack.com in desktop mode"
           ],
           "default": "instagram",
           "description": "Which service to open in the sidebar. Changes take effect after running 'Reelbar: Switch Service' or 'Restart Browser'."

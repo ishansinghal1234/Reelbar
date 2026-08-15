@@ -57,6 +57,7 @@ function cfg(): vscode.WorkspaceConfiguration {
 function sourceUrl(): string {
   const s = cfg().get<string>("source", "instagram");
   if (s === "ytmusic") return "https://music.youtube.com/";
+  if (s === "slack") return "https://app.slack.com/";
   return cfg().get<string>("url", "https://www.instagram.com/");
 }
 

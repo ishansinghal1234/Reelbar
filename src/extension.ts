@@ -30,13 +30,14 @@ function source(): string {
 function updateStatus(): void {
   if (!statusItem) return;
   const active = mode() === "sidebar" ? !!provider?.chromeManager.isConnected : windowMode.isRunning();
-  const label = source() === "ytmusic" ? "YT Music" : "Reels";
+  const label = source() === "ytmusic" ? "YT Music" : source() === "slack" ? "Slack" : "Reels";
+  const svcName = source() === "ytmusic" ? "YouTube Music" : source() === "slack" ? "Slack" : "Instagram";
   if (active) {
     statusItem.text = `$(circle-filled) ${label}`;
     statusItem.tooltip = `Reelbar: running — click to toggle (⌘⇧9)`;
   } else {
     statusItem.text = `$(device-camera-video) ${label}`;
-    statusItem.tooltip = `Reelbar: open ${source() === "ytmusic" ? "YouTube Music" : "Instagram"} (⌘⇧9)`;
+    statusItem.tooltip = `Reelbar: open ${svcName} (⌘⇧9)`;
   }
   statusItem.show();
 }
@@ -130,6 +131,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const picks = [
         { label: "$(device-camera-video) Instagram Reels", id: "instagram" },
         { label: "$(music) YouTube Music", id: "ytmusic" },
+        { label: "$(comment-discussion) Slack", id: "slack" },
       ];
       const pick = await vscode.window.showQuickPick(
         picks.map((p) => ({ ...p, description: p.id === current ? "current" : undefined })),
