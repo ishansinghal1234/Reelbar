@@ -316,32 +316,59 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
 
     await cdp.send("Page.enable", {}, sessionId);
 
-    // Slack: intercept JS-level slack:// navigations so workspace-switching
-    // stays in the web app instead of trying to open the native client.
+    // Slack: three-layer defence so workspace navigation stays in the panel.
     if (this.source === "slack") {
-      await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
-        source: `(function(){
-          const _open = window.open;
-          window.open = function(url) {
-            if (typeof url === "string" && url.startsWith("slack://")) return null;
-            return _open.apply(this, arguments);
-          };
-          // Also catch location.href = "slack://..." assignments
-          try {
-            const desc = Object.getOwnPropertyDescriptor(location, "href");
-            if (desc && desc.set) {
-              Object.defineProperty(location, "href", {
-                get: desc.get,
-                set: function(v) {
-                  if (typeof v === "string" && v.startsWith("slack://")) return;
-                  desc.set.call(this, v);
-                },
-                configurable: true,
-              });
-            }
-          } catch(e) {}
-        })();`
+      const slackScript = `(function(){
+        if (window.__reelbarSlack) return;
+        window.__reelbarSlack = true;
+        // 1. Intercept window.open — Slack calls this for workspace navigation
+        const _open = window.open;
+        window.open = function(url) {
+          if (typeof url === "string") {
+            if (url.startsWith("slack://")) return null;
+            if (url.startsWith("https://app.slack.com/")) { location.href = url; return null; }
+          }
+          return _open.apply(this, arguments);
+        };
+        // 2. Intercept <a target="_blank"> clicks
+        document.addEventListener("click", function(e) {
+          const a = e.target && e.target.closest && e.target.closest("a");
+          if (a && a.target === "_blank" && a.href && a.href.startsWith("https://app.slack.com/")) {
+            e.preventDefault(); e.stopPropagation(); location.href = a.href;
+          }
+        }, true);
+      })();`;
+
+      // Inject into the CURRENT page (addScriptToEvaluateOnNewDocument only
+      // runs on future page loads — the workspace picker is already loaded).
+      await cdp.send("Runtime.evaluate", {
+        expression: slackScript, returnByValue: false,
       }, sessionId).catch(() => {});
+
+      // Also inject into every future page navigation.
+      await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+        source: slackScript,
+      }, sessionId).catch(() => {});
+
+      // 3. Browser-level fallback: if a new app.slack.com/client tab is created
+      // anyway (e.g. via browser-internal navigation we can't intercept in JS),
+      // pull its URL into our main tab and close the orphan.
+      await cdp.send("Target.setDiscoverTargets", { discover: true }).catch(() => {});
+      const mainTargetId = this.chrome.pageTargetId;
+      const pullNewSlackTab = async (info: any) => {
+        if (!info || info.type !== "page" || info.targetId === mainTargetId) return;
+        if (!info.url.startsWith("https://app.slack.com/client/")) return;
+        const sid = this.sessionId;
+        if (!sid) return;
+        await cdp.send("Page.navigate", { url: info.url }, sid).catch(() => {});
+        await cdp.send("Target.closeTarget", { targetId: info.targetId }).catch(() => {});
+      };
+      this.disposables.push(
+        cdp.on("Target.targetCreated",     (p) => void pullNewSlackTab(p?.targetInfo))
+      );
+      this.disposables.push(
+        cdp.on("Target.targetInfoChanged", (p) => void pullNewSlackTab(p?.targetInfo))
+      );
     }
 
     // The page must believe it's focused while parked offscreen, or videos
