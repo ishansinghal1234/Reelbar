@@ -126,7 +126,14 @@ export function activate(context: vscode.ExtensionContext): void {
       return p ? void p.hideBrowserWindow() : undefined;
     }),
     vscode.commands.registerCommand("reelbar.restartChrome", () =>
-      void Promise.all(providers.map((p) => p.restartChrome()))
+      // Restart panels the user actually has open (visible view, possibly with
+      // a dead Chrome) or running in the background — never panels that were
+      // never opened, or all three Chromes would spawn at once.
+      void Promise.all(
+        providers
+          .filter((p) => p.isVisible || p.chromeManager.isConnected)
+          .map((p) => p.restartChrome())
+      )
     ),
     vscode.commands.registerCommand("reelbar.reload", () =>
       void Promise.all(

@@ -311,6 +311,43 @@ in an input/textarea/contenteditable, so comments still type normally.
 `Input.dispatchMouseEvent` never returns (hit the new 15s CDP timeout, which is
 how it was caught). Touch is not needed anyway, per finding 3.
 
+## 2.1.0 (2026-08-16): multi-panel — Instagram, YouTube Music, Slack (PR #1)
+
+First outside contribution (PR #1, @ishansinghal1234): three sidebar panels,
+each with its own hidden Chrome, profile, and CDP session. YT Music and Slack
+are desktop-first (mobileUI is Instagram-only); arrows/space pass through to
+their native players instead of running reel-step JS. Slack ships a three-layer
+defence so workspace navigation stays in the panel: `slack://` excluded via
+Chrome prefs written before first launch, window.open/anchor interception
+injected on every document, and a CDP target watcher that pulls orphan
+app.slack.com/client tabs back into the main one.
+
+Review fixes applied on top of the contribution (all verified live):
+
+1. **Kept the view container on `activitybar`.** The PR moved it to
+   `secondarySideBar`, which needs VS Code ≥1.97 while we declare ^1.80 —
+   invalid contribution, view falls back to Explorer on older builds.
+2. **Space in a text field types a space again.** The non-Instagram space
+   path always dispatched a bare keyDown (no text), so YT Music search and
+   Slack messages could never contain spaces ("hey jude" → "heyjude").
+   Now guarded by IS_TYPING_JS, falling through to insertText while typing.
+3. **Instagram keeps the legacy `profile` subdir.** The rewrite moved it to
+   `profile-instagram`, which would log every existing user out on upgrade.
+4. **ChromeManager's startUrl falls back to the `reelbar.url` setting** when
+   not passed (the rewrite hardcoded instagram.com, which sent every direct-
+   launch smoke test to the real site — nondeterministic frames/layout).
+5. **YT Music + Slack views default collapsed** so opening the sidebar spawns
+   one Chrome, not three; each panel's Chrome launches on first expand.
+6. **Restart Browser only restarts open/running panels**, not all three.
+
+Unauthenticated Slack redirects to the marketing page (slack.com/intl/…), not
+signin — loginNeeded fires when the user proceeds to sign in, with
+service-specific overlay copy (the webview `detail` plumbing already existed).
+
+Verified: smoke 22/22 (Instagram path unregressed) + a new 18/18 live harness
+(scratchpad) covering YT Music, Slack (prefs, injection, login detection,
+typing), and two panels streaming simultaneously from one storage root.
+
 ## Development context
 
 - Primary target: macOS on Apple Silicon with Chrome installed. Window parking is macOS-tuned;

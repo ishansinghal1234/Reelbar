@@ -109,7 +109,7 @@ export class ChromeManager {
   private context: vscode.ExtensionContext;
   private events: ChromeEvents;
   private readonly profileSubdir: string;
-  private readonly startUrl: string;
+  private readonly fixedStartUrl: string | null;
   private proc: ChildProcess | null = null;
   private cdp: Cdp | null = null;
   private windowId: number | null = null;
@@ -129,12 +129,18 @@ export class ChromeManager {
     context: vscode.ExtensionContext,
     events: ChromeEvents,
     profileSubdir = "profile",
-    startUrl = "https://www.instagram.com/"
+    startUrl?: string
   ) {
     this.context = context;
     this.events = events;
     this.profileSubdir = profileSubdir;
-    this.startUrl = startUrl;
+    this.fixedStartUrl = startUrl ?? null;
+  }
+
+  // A panel passes its fixed URL; without one (legacy callers, tests) fall
+  // back to the reelbar.url setting, read at launch time as before.
+  private get startUrl(): string {
+    return this.fixedStartUrl ?? cfg().get<string>("url", "https://www.instagram.com/");
   }
 
   get connection(): Cdp | null {

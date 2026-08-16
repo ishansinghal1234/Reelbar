@@ -1,8 +1,8 @@
 {
   "name": "reelbar",
   "displayName": "Reelbar",
-  "description": "Instagram in your VS Code sidebar — a real Chrome runs invisibly and streams into the editor. Scroll reels beside your code, audio and all. No iframe, no proxy: Instagram sees a normal browser.",
-  "version": "2.0.0",
+  "description": "Instagram Reels, YouTube Music, and Slack in your VS Code sidebar — a real Chrome runs invisibly and streams into the editor, audio and all. No iframe, no proxy: each site sees a normal browser.",
+  "version": "2.1.0",
   "publisher": "opryon",
   "license": "MIT",
   "repository": {
@@ -20,6 +20,7 @@
     "reels",
     "youtube music",
     "ytmusic",
+    "slack",
     "sidebar",
     "dock",
     "companion",
@@ -47,7 +48,7 @@
   },
   "contributes": {
     "viewsContainers": {
-      "secondarySideBar": [
+      "activitybar": [
         {
           "id": "reelbar",
           "title": "Reelbar",
@@ -67,13 +68,15 @@
           "type": "webview",
           "id": "reelbar.view.ytmusic",
           "name": "YouTube Music",
-          "contextualTitle": "Reelbar — YouTube Music"
+          "contextualTitle": "Reelbar — YouTube Music",
+          "visibility": "collapsed"
         },
         {
           "type": "webview",
           "id": "reelbar.view.slack",
           "name": "Slack",
-          "contextualTitle": "Reelbar — Slack"
+          "contextualTitle": "Reelbar — Slack",
+          "visibility": "collapsed"
         }
       ]
     },
@@ -194,12 +197,12 @@
         "reelbar.muteWhenHidden": {
           "type": "boolean",
           "default": false,
-          "description": "Mute Instagram when the sidebar view is hidden. Off by default so audio keeps playing (podcast mode). The video stream always pauses when hidden; only audio is affected."
+          "description": "Mute a panel's audio when its sidebar view is hidden. Off by default so audio keeps playing (podcast mode). The video stream always pauses when hidden; only audio is affected."
         },
         "reelbar.url": {
           "type": "string",
           "default": "https://www.instagram.com/",
-          "description": "Page to open. Default is the Instagram home feed."
+          "description": "Page to open in the Instagram panel. Default is the Instagram home feed. YouTube Music and Slack panels have fixed URLs."
         },
         "reelbar.browserPath": {
           "type": "string",

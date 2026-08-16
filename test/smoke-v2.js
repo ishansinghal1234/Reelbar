@@ -742,7 +742,7 @@ async function run() {
         const { dir, context } = makeContext();
         cleanupDirs.push(dir);
         profileDir = path.join(dir, "profile");
-        const provider = new ReelViewProvider(context);
+        const provider = new ReelViewProvider(context, "reelbar.view.instagram", "instagram");
         owned.add(provider.chromeManager);
         const fake = makeFakeView(true);
         provider.resolveWebviewView(fake.view);

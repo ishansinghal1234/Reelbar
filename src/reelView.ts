@@ -92,6 +92,12 @@ export const TOGGLE_PLAY_JS = `(() => {${TYPING_GUARD}
   return "pause";
 })()`;
 
+// Just the typing check, for panels where the page owns play/pause and we
+// only need to know whether Space belongs to a focused text field.
+export const IS_TYPING_JS = `(() => {${TYPING_GUARD}
+  return "page";
+})()`;
+
 interface ViewDims {
   cssW: number;
   cssH: number;
@@ -134,10 +140,13 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
   }
 
   private makeChrome(): ChromeManager {
+    // Instagram keeps the pre-multi-panel "profile" subdir so existing users
+    // stay logged in across the upgrade; new panels get their own.
+    const profileSubdir = this.source === "instagram" ? "profile" : `profile-${this.source}`;
     return new ChromeManager(
       this.context,
       { onGone: () => this.onChromeGone() },
-      `profile-${this.source}`,
+      profileSubdir,
       this.sourceUrl()
     );
   }
@@ -228,9 +237,11 @@ export class ReelViewProvider implements vscode.WebviewViewProvider {
             if (this.source === "instagram") {
               // Instagram: toggle play/pause via the video element directly.
               if ((await this.pageAction(TOGGLE_PLAY_JS)) !== "typing") break;
-            } else {
+            } else if ((await this.pageAction(IS_TYPING_JS)) !== "typing") {
               // YT Music and Slack bind space via keydown — dispatch as a real
-              // key event instead of inserting a text character.
+              // key event instead of inserting a text character. When the
+              // focus is in a text field (search box, message composer), fall
+              // through to insertText so the space actually types.
               const spaceKey = { key: " ", code: "Space", windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 };
               await this.cdp.send("Input.dispatchKeyEvent", { type: "keyDown", ...spaceKey }, this.sessionId).catch(() => {});
               await this.cdp.send("Input.dispatchKeyEvent", { type: "keyUp", ...spaceKey }, this.sessionId).catch(() => {});
